@@ -13,9 +13,9 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: thumbv8m.base-none-eabi
+          target: thumbv7m-none-eabi
           override: true
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features=rt --target thumbv8m.base-none-eabi --examples --no-deps
+          args: --features=rt --target thumbv7m-none-eabi --examples --no-deps

@@ -1,8 +1,8 @@
-[target.thumbv8m.base-none-eabi]
+[target.thumbv7m-none-eabi]
 runner = 'gdb-multiarch'
 rustflags = [
   "-C", "link-arg=-Tlink.x",
 ]
 
 [build]
-target = "thumbv8m.base-none-eabi"
+target = "thumbv7m-none-eabi"

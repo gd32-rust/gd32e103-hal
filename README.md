@@ -31,7 +31,7 @@ To program your microcontroller, you need to install:
 Finally, you need to install arm target support for the Rust compiler. To do so, run
 
 ```
-rustup target install thumbv8m.base-none-eabi
+rustup target install thumbv7m-none-eabi
 ```
 
 ### Setting up your project
@@ -128,7 +128,7 @@ You may need to give `cargo` permission to call `gdb` from the working directory
 Compile, load, and launch the hardware debugger.
 
 ```bash
-$ rustup target add thumbv8m.base-none-eabi
+$ rustup target add thumbv7m-none-eabi
 
 # on another terminal
 $ openocd -f interface/$INTERFACE.cfg -f target/stm32f1x.cfg
