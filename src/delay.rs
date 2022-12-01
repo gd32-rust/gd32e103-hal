@@ -1,4 +1,4 @@
-// Copyright 2021 The gd32f1x0-hal authors.
+// Copyright 2022 The gd32e103-hal authors.
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
