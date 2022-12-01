@@ -8,14 +8,14 @@ jobs:
   clippy_check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - run: rustup component add clippy
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: thumbv7m-none-eabi
+          target: thumbv8m.base-none-eabi
           override: true
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features=gd32f130x8,rt --target thumbv7m-none-eabi --examples
+          args: --features=rt --target thumbv8m.base-none-eabi --examples --no-deps

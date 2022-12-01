@@ -8,37 +8,15 @@ name: Continuous integration
 jobs:
   ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        mcu:
-          - gd32f130x4
-          - gd32f130x6
-          - gd32f130x8
-          - gd32f150x4
-          - gd32f150x6
-          - gd32f150x8
-          - gd32f170x4
-          - gd32f170x6
-          - gd32f170x8
-          - gd32f190x4
-          - gd32f190x6
-          - gd32f190x8
-        rust:
-          - stable
-        include:
-          - rust: nightly
-            mcu: gd32f130x8
-            experimental: true
-
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
-          target: thumbv7m-none-eabi
+          toolchain: stable
+          target: thumbv8m.base-none-eabi
           override: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --features=${{ matrix.mcu }},rt --examples
+          args: --features=rt --examples
