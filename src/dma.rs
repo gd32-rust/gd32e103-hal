@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! # Direct Memory Access
+//! Only DMA0 is supported for now
 
-use crate::pac::{dma, DMA};
+use crate::pac::{dma0 as dma, DMA0 as DMA};
 use crate::rcu::{Enable, AHB};
 use core::{
     marker::PhantomData,

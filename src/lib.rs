@@ -61,7 +61,7 @@ pub use gd32e1::gd32e103 as pac;
 //pub mod can;
 pub mod crc;
 pub mod delay;
-//pub mod dma;
+pub mod dma;
 pub mod flash;
 //pub mod gpio;
 //pub mod i2c;
