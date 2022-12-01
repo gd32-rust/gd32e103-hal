@@ -1,17 +1,15 @@
-// Copyright 2021 The gd32f1x0-hal authors.
+// Copyright 2022 The gd32e103-hal authors.
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! # Reset & Clock Unit
 
 use crate::flash::WS;
-#[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
-use crate::pac::rcu::cfg0::USBDPSC_A;
 use crate::pac::{
     fmc::ws::WSCNT_A,
     rcu::{
         self,
-        cfg0::{ADCPSC_A, AHBPSC_A, APB1PSC_A, APB2PSC_A, PLLSEL_A, SCS_A},
+        cfg0::{ADCPSC_A, AHBPSC_A, APB1PSC_A, PLLMF_MSB_A, PLLSEL_A, SCS_A, USBFSPSC_A},
     },
     RCU,
 };
@@ -161,15 +159,15 @@ pub struct ADDAPB1 {
 
 impl ADDAPB1 {
     #[allow(unused)]
-    pub(crate) fn enr(&mut self) -> &rcu::ADDEN {
+    pub(crate) fn enr(&mut self) -> &rcu::ADDAPB1EN {
         // NOTE(unsafe) this proxy grants exclusive access to this register
-        unsafe { &(*RCU::ptr()).adden }
+        unsafe { &(*RCU::ptr()).addapb1en }
     }
 
     #[allow(unused)]
-    pub(crate) fn rstr(&mut self) -> &rcu::ADDRST {
+    pub(crate) fn rstr(&mut self) -> &rcu::ADDAPB1RST {
         // NOTE(unsafe) this proxy grants exclusive access to this register
-        unsafe { &(*RCU::ptr()).addrst }
+        unsafe { &(*RCU::ptr()).addapb1rst }
     }
 }
 
@@ -268,18 +266,26 @@ impl CFGR {
 
         let pllmul = self.sysclk.unwrap_or(pllsrculk) / pllsrculk;
 
-        let (pllmf_msb, pllmf_bits, sysclk) = if pllmul == 1 {
-            (false, None, self.hxtal.unwrap_or(IRC8M))
+        let (pllmf_msb, pllmf_lsb, sysclk) = if pllmul == 1 {
+            (PLLMF_MSB_A::NONE, None, self.hxtal.unwrap_or(IRC8M))
         } else {
             let pllmul = cmp::min(cmp::max(pllmul, 2), 32);
             if pllmul > 16 {
-                (true, Some(pllmul as u8 - 17), pllsrculk * pllmul)
+                (
+                    PLLMF_MSB_A::PLUS15,
+                    Some(pllmul as u8 - 17),
+                    pllsrculk * pllmul,
+                )
             } else {
-                (false, Some(pllmul as u8 - 2), pllsrculk * pllmul)
+                (
+                    PLLMF_MSB_A::NONE,
+                    Some(pllmul as u8 - 2),
+                    pllsrculk * pllmul,
+                )
             }
         };
 
-        assert!(sysclk <= 72_000_000);
+        assert!(sysclk <= 120_000_000);
 
         let (ahbpsc, hclk) = match sysclk / self.hclk.unwrap_or(sysclk) {
             0 => unreachable!(),
@@ -294,7 +300,7 @@ impl CFGR {
             _ => (AHBPSC_A::DIV512, sysclk / 512),
         };
 
-        assert!(hclk <= 72_000_000);
+        assert!(hclk <= 120_000_000);
 
         // Default APB1 clock to less than 36 MHz so I2C will work.
         let (apb1psc, ppre1) = match hclk / self.pclk1.unwrap_or_else(|| cmp::min(hclk, 36_000_000))
@@ -309,21 +315,23 @@ impl CFGR {
 
         let pclk1 = hclk / u32(ppre1);
 
-        assert!(pclk1 <= 72_000_000);
+        assert!(pclk1 <= 60_000_000);
 
+        // APB2PSC_A is a type redefinition of APB1PSC_A, so svd2rust did not generate it.
         let (apb2psc, ppre2) = match hclk / self.pclk2.unwrap_or(hclk) {
             0 => unreachable!(),
-            1 => (APB2PSC_A::DIV1, 1),
-            2 => (APB2PSC_A::DIV2, 2),
-            3..=5 => (APB2PSC_A::DIV4, 4),
-            6..=11 => (APB2PSC_A::DIV8, 8),
-            _ => (APB2PSC_A::DIV16, 16),
+            1 => (APB1PSC_A::DIV1, 1),
+            2 => (APB1PSC_A::DIV2, 2),
+            3..=5 => (APB1PSC_A::DIV4, 4),
+            6..=11 => (APB1PSC_A::DIV8, 8),
+            _ => (APB1PSC_A::DIV16, 16),
         };
 
         let pclk2 = hclk / u32(ppre2);
 
-        assert!(pclk2 <= 72_000_000);
+        assert!(pclk2 <= 120_000_000);
 
+        // TODO check this for GD32E103
         // adjust flash wait states
         ws.ws().write(|w| {
             w.wscnt().variant(if sysclk <= 24_000_000 {
@@ -335,17 +343,18 @@ impl CFGR {
             })
         });
 
-        #[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
         // the USB clock is only valid if an external crystal is used, the PLL is enabled, and the
         // PLL output frequency is a supported one.
         // usbpre == false: divide clock by 1.5, otherwise no division
-        let (usbpre, usbclk_valid) = match (self.hxtal, pllmf_bits, sysclk) {
-            (Some(_), Some(_), 72_000_000) => (USBDPSC_A::DIV1_5, true),
-            (Some(_), Some(_), 48_000_000) => (USBDPSC_A::DIV1, true),
-            _ => (USBDPSC_A::DIV1_5, false),
+        let (usbpre, usbclk_valid) = match (self.hxtal, pllmf_lsb, sysclk) {
+            (Some(_), Some(_), 120_000_000) => (USBFSPSC_A::DIV2_5, true),
+            (Some(_), Some(_), 96_000_000) => (USBFSPSC_A::DIV2, true),
+            (Some(_), Some(_), 72_000_000) => (USBFSPSC_A::DIV1_5, true),
+            (Some(_), Some(_), 48_000_000) => (USBFSPSC_A::DIV1, true),
+            _ => (USBFSPSC_A::DIV1_5, false),
         };
 
-        let (adcpsc, adcclk) = match pclk2 / self.adcclk.unwrap_or(pclk2 / 8) {
+        let (adcpsc, adcclk) = match pclk2 / self.adcclk.unwrap_or(pclk2 / 4) {
             0..=2 => (ADCPSC_A::DIV2, pclk2 / 2),
             3..=4 => (ADCPSC_A::DIV4, pclk2 / 4),
             5..=7 => (ADCPSC_A::DIV6, pclk2 / 6),
@@ -360,14 +369,14 @@ impl CFGR {
             while rcu.ctl0.read().hxtalstb().is_not_ready() {}
         }
 
-        if let Some(pllmf_bits) = pllmf_bits {
+        if let Some(pllmf_lsb) = pllmf_lsb {
             // enable PLL and wait for it to be ready
 
             rcu.cfg0.modify(|_, w| {
                 w.pllmf()
-                    .bits(pllmf_bits)
+                    .bits(pllmf_lsb)
                     .pllmf_msb()
-                    .bit(pllmf_msb)
+                    .variant(pllmf_msb)
                     .pllsel()
                     .variant(if self.hxtal.is_some() {
                         PLLSEL_A::HXTAL
@@ -391,8 +400,10 @@ impl CFGR {
                 .variant(apb1psc)
                 .ahbpsc()
                 .variant(ahbpsc)
+                .usbfspsc()
+                .variant(usbpre)
                 .scs()
-                .variant(if pllmf_bits.is_some() {
+                .variant(if pllmf_lsb.is_some() {
                     SCS_A::PLL
                 } else if self.hxtal.is_some() {
                     SCS_A::HXTAL
@@ -400,11 +411,6 @@ impl CFGR {
                     SCS_A::IRC8M
                 })
         });
-        #[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
-        {
-            rcu.cfg0.modify(|_, w| w.usbdpsc().variant(usbpre));
-        }
-        rcu.cfg2.modify(|_, w| w.adcsel().apb2().usart0sel().apb2());
 
         Clocks {
             hclk: Hertz(hclk),
@@ -414,7 +420,6 @@ impl CFGR {
             ppre2,
             sysclk: Hertz(sysclk),
             adcclk: Hertz(adcclk),
-            #[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
             usbclk_valid,
         }
     }
@@ -461,7 +466,6 @@ pub struct Clocks {
     ppre2: u8,
     sysclk: Hertz,
     adcclk: Hertz,
-    #[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
     usbclk_valid: bool,
 }
 
@@ -512,7 +516,6 @@ impl Clocks {
     }
 
     /// Returns whether the USBCLK clock frequency is valid for the USB peripheral
-    #[cfg(any(feature = "gd32f130", feature = "gd32f150"))]
     pub fn usbclk_valid(&self) -> bool {
         self.usbclk_valid
     }
@@ -625,8 +628,10 @@ macro_rules! ahb_bus {
     }
 }
 
+// TODO declare EXTI, FWDGT, RTC, DAC, CTC peripherals?
 bus! {
-    ADC => (APB2, adcen, adcrst),
+    ADC0 => (APB2, adc0en, adc0rst),
+    ADC1 => (APB2, adc1en, adc1rst),
     I2C0 => (APB1, i2c0en, i2c0rst),
     I2C1 => (APB1, i2c1en, i2c1rst),
     SPI0 => (APB2, spi0en, spi0rst),
@@ -635,34 +640,34 @@ bus! {
     TIMER0 => (APB2, timer0en, timer0rst),
     TIMER1 => (APB1, timer1en, timer1rst),
     TIMER2 => (APB1, timer2en, timer2rst),
+    TIMER3 => (APB1, timer3en, timer3rst),
+    TIMER4 => (APB1, timer4en, timer4rst),
     TIMER5 => (APB1, timer5en, timer5rst),
+    TIMER6 => (APB1, timer6en, timer6rst),
+    TIMER7 => (APB2, timer7en, timer7rst),
+    TIMER8 => (APB2, timer8en, timer8rst),
+    TIMER9 => (APB2, timer9en, timer9rst),
+    TIMER10 => (APB2, timer10en, timer10rst),
+    TIMER11 => (APB1, timer11en, timer11rst),
+    TIMER12 => (APB1, timer12en, timer12rst),
     TIMER13 => (APB1, timer13en, timer13rst),
-    TIMER14 => (APB2, timer14en, timer14rst),
-    TIMER15 => (APB2, timer15en, timer15rst),
-    TIMER16 => (APB2, timer16en, timer16rst),
     USART0 => (APB2, usart0en, usart0rst),
     USART1 => (APB1, usart1en, usart1rst),
+    USART2 => (APB1, usart2en, usart2rst),
+    UART3 => (APB1, uart3en, uart3rst),
+    UART4 => (APB1, uart4en, uart4rst),
     WWDGT => (APB1, wwdgten, wwdgtrst),
-}
-
-#[cfg(feature = "gd32f150")]
-bus! {
-    USBD => (APB1, usbden, usbdrst),
-}
-
-#[cfg(any(feature = "gd32f170", feature = "gd32f190"))]
-bus! {
     CAN0 => (APB1, can0en, can0rst),
     CAN1 => (APB1, can1en, can1rst),
-    I2C2 => (ADDAPB1, i2c2en, i2c2rst),
+    GPIOA => (APB2, paen, parst),
+    GPIOB => (APB2, pben, pbrst),
+    GPIOC => (APB2, pcen, pcrst),
+    GPIOD => (APB2, pden, pdrst),
+    GPIOE => (APB2, peen, perst),
 }
 
 ahb_bus! {
     CRC => (crcen),
-    DMA => (dmaen),
-    GPIOA => (paen),
-    GPIOB => (pben),
-    GPIOC => (pcen),
-    GPIOD => (pden),
-    GPIOF => (pfen),
+    DMA0 => (dma0en),
+    USBFS_GLOBAL => (usbfsen),
 }
