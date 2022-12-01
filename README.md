@@ -1,12 +1,14 @@
-# `gd32f1x0-hal`
+# `gd32e103-hal`
 
-> [HAL] for the GD32F1x0 family of microcontrollers
+> [HAL] for the GD32E103 family of microcontrollers
+
+This is currently mostly a non-working fork of the GD32F1x0-HAL crate, please do not use this for now!
 
 [hal]: https://crates.io/crates/embedded-hal
 
-[![Continuous integration](https://github.com/gd32-rust/gd32f1x0-hal/workflows/Continuous%20integration/badge.svg)](https://github.com/gd32-rust/gd32f1x0-hal)
-[![crates.io](https://img.shields.io/crates/v/gd32f1x0-hal.svg)](https://crates.io/crates/gd32f1x0-hal)
-[![Released API docs](https://docs.rs/gd32f1x0-hal/badge.svg)](https://docs.rs/gd32f1x0-hal)
+[![Continuous integration](https://github.com/gd32-rust/gd32e103-hal/workflows/Continuous%20integration/badge.svg)](https://github.com/gd32-rust/gd32e103-hal)
+[![crates.io](https://img.shields.io/crates/v/gd32e103-hal.svg)](https://crates.io/crates/gd32e103-hal)
+[![Released API docs](https://docs.rs/gd32e103-hal/badge.svg)](https://docs.rs/gd32e103-hal)
 
 ## Quick start guide
 
@@ -29,7 +31,7 @@ To program your microcontroller, you need to install:
 Finally, you need to install arm target support for the Rust compiler. To do so, run
 
 ```
-rustup target install thumbv7m-none-eabi
+rustup target install thumbv8m.base-none-eabi
 ```
 
 ### Setting up your project
@@ -49,7 +51,7 @@ cortex-m = "0.7.5"
 cortex-m-rt = "0.7.1"
 # Panic behaviour, see https://crates.io/keywords/panic-impl for alternatives
 panic-halt = "0.2.0"
-gd32f1x0-hal = { version = "0.7.1", features = ["rt", "gd32f130x8"] }
+gd32e103-hal = { version = "0.0.1", features = ["rt"] }
 ```
 
 If you build your project now, you should get a single error:
@@ -58,7 +60,7 @@ fixed by compiling for the right target.
 
 We also need to tell Rust how to link our executable, and how to lay out the
 result in memory. To accomplish all this, copy [.cargo/config](.cargo/config) and
-[memory.x](memory.x) from the gd32f1x0-hal repo to your project.
+[memory.x](memory.x) from the gd32e103-hal repo to your project.
 
 ```bash
 cargo build
@@ -106,31 +108,9 @@ attached to PC13 should start blinking.
 ### Going further
 
 From here on, you can start adding more code to your project to make it do something more
-interesting. For crate documentation, see [docs.rs/gd32f1x0-hal](https://docs.rs/gd32f1x0-hal).
+interesting. For crate documentation, see [docs.rs/gd32e103-hal](https://docs.rs/gd32e103-hal).
 There are also a lot more [examples](examples) available. If something is unclear in the docs or
 examples, please, open an issue and we will try to improve it.
-
-## Selecting a microcontroller
-
-This crate supports multiple microcontrollers in the GD32F1x0 family. Which specific microcontroller
-you want to build for has to be specified with a feature, for example `gd32f130x8`.
-
-If no microcontroller is specified, the crate will not compile.
-
-### Supported Microcontrollers
-
-- `gd32f130x4` (e.g. GD32F130F4, GD32F130G4, ...)
-- `gd32f130x6` (e.g. GD32F130F6, GD32F130G6, ...)
-- `gd32f130x8` (e.g. GD32F130F8, GD32F130G8, ...)
-- `gd32f150x4` (e.g. GD32F150G4, GD32F150K4, ...)
-- `gd32f150x6` (e.g. GD32F150G6, GD32F150K6, ...)
-- `gd32f150x8` (e.g. GD32F150G8, GD32F150K8, ...)
-- `gd32f170x4` (e.g. GD32F170T4, GD32F170C4, ...)
-- `gd32f170x6` (e.g. GD32F170T6, GD32F170C6, ...)
-- `gd32f170x8` (e.g. GD32F170T8, GD32F170C8, ...)
-- `gd32f190x4` (e.g. GD32F190T4, GD32F190C4, ...)
-- `gd32f190x6` (e.g. GD32F190T6, GD32F190C6, ...)
-- `gd32f190x8` (e.g. GD32F190T8, GD32F190C8, ...)
 
 ## Trying out the examples
 
@@ -148,13 +128,13 @@ You may need to give `cargo` permission to call `gdb` from the working directory
 Compile, load, and launch the hardware debugger.
 
 ```bash
-$ rustup target add thumbv7m-none-eabi
+$ rustup target add thumbv8m.base-none-eabi
 
 # on another terminal
 $ openocd -f interface/$INTERFACE.cfg -f target/stm32f1x.cfg
 
 # flash and debug the "Hello, world" example. Change gd32f130x8 to match your hardware
-$ cargo run --features gd32f130x8 --example hello
+$ cargo run --example hello
 ```
 
 `$INTERFACE` should be set based on your debugging hardware. If you are using
@@ -169,12 +149,12 @@ When using this crate as a dependency in your project, the microcontroller can
 be specified as part of the `Cargo.toml` definition.
 
 ```toml
-gd32f1x0-hal = { version = "0.7.1", features = ["gd32f130x8", "rt"] }
+gd32e103-hal = { version = "0.0.1", features = ["rt"] }
 ```
 
 ## Documentation
 
-The documentation can be found at [docs.rs](https://docs.rs/stm32f1xx-hal/).
+The documentation can be found at [docs.rs](https://docs.rs/stm32e103-hal/).
 
 ## Disclaimer
 

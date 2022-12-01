@@ -1,17 +1,17 @@
 [package]
 authors = ["Andrew Walbran <qwandor@gmail.com>"]
 categories = ["embedded", "hardware-support", "no-std"]
-description = "HAL for the GD32F1x0 family of microcontrollers"
+description = "HAL for the GD32E103 family of microcontrollers"
 keywords = ["arm", "cortex-m", "gd32", "hal"]
 license = "MIT OR Apache-2.0"
-name = "gd32f1x0-hal"
-repository = "https://github.com/gd32-rust/gd32f1x0-hal"
+name = "gd32e103-hal"
+repository = "https://github.com/gd32-rust/gd32e103-hal"
 readme = "README.md"
 edition = "2018"
-version = "0.7.1"
+version = "0.0.1"
 
 [package.metadata.docs.rs]
-features = ["gd32f130x8", "rt"]
+features = ["rt"]
 default-target = "x86_64-unknown-linux-gnu"
 
 [dependencies]
@@ -21,9 +21,9 @@ cortex-m = "0.7.5"
 cortex-m-rt = "0.7.1"
 embedded-dma = "0.2.0"
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
-gd32f1 = "0.6.0"
 nb = "1.0.0"
 void = { version = "1.0.2", default-features = false }
+gd32e1 = { version = "0.7.0", features = ["gd32e103", "rt", "critical-section"] }
 
 [dev-dependencies]
 byteorder = { version = "1.4.3",default-features = false }
@@ -42,25 +42,8 @@ serde = { version = "1.0.137", default-features = false }
 serde_derive = "1.0.137"
 
 [features]
-device-selected = []
 doc = []
-rt = ["gd32f1/rt"]
-gd32f130 = ["gd32f1/gd32f130", "device-selected"]
-gd32f130x4 = ["gd32f130"]
-gd32f130x6 = ["gd32f130"]
-gd32f130x8 = ["gd32f130"]
-gd32f150 = ["gd32f1/gd32f150", "device-selected"]
-gd32f150x4 = ["gd32f150"]
-gd32f150x6 = ["gd32f150"]
-gd32f150x8 = ["gd32f150"]
-gd32f170 = ["gd32f1/gd32f170", "device-selected"]
-gd32f170x4 = ["gd32f170"]
-gd32f170x6 = ["gd32f170"]
-gd32f170x8 = ["gd32f170"]
-gd32f190 = ["gd32f1/gd32f190", "device-selected"]
-gd32f190x4 = ["gd32f190"]
-gd32f190x6 = ["gd32f190"]
-gd32f190x8 = ["gd32f190"]
+rt = ["gd32e1/rt"]
 
 [profile.dev]
 incremental = false
