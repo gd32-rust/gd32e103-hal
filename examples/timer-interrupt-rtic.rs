@@ -14,7 +14,7 @@ use panic_halt as _;
 use rtic::app;
 
 use embedded_hal::digital::v2::OutputPin;
-use gd32f1x0_hal::{
+use gd32e103_hal::{
     gpio::{gpioc::PC13, Output, PushPull},
     pac,
     prelude::*,
@@ -26,7 +26,7 @@ pub struct Led {
     led_state: bool,
 }
 
-#[app(device = gd32f1x0_hal::pac, peripherals = true)]
+#[app(device = gd32e103_hal::pac, peripherals = true)]
 mod app {
     use super::*;
 

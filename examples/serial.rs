@@ -13,7 +13,7 @@ use cortex_m::asm;
 use nb::block;
 
 use cortex_m_rt::entry;
-use gd32f1x0_hal::{
+use gd32e103_hal::{
     gpio::{OutputMode, PullMode},
     pac,
     prelude::*,

@@ -10,7 +10,7 @@ use nb::block;
 
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
-use gd32f1x0_hal::{pac, prelude::*, timer::Timer};
+use gd32e103_hal::{pac, prelude::*, timer::Timer};
 
 #[entry]
 fn main() -> ! {

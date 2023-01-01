@@ -7,7 +7,7 @@ use panic_halt as _;
 
 use cortex_m::{asm, singleton};
 use cortex_m_rt::entry;
-use gd32f1x0_hal::{adc::Adc, pac, prelude::*};
+use gd32e103_hal::{adc::Adc, pac, prelude::*};
 
 #[entry]
 fn main() -> ! {

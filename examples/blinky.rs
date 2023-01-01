@@ -1,9 +1,6 @@
 //! Blinks an LED
 //!
-//! This assumes that a LED is connected to pc13 as is the case on the blue pill board.
-//!
-//! Note: Without additional hardware, PC13 should not be used to drive an LED, see page 5.1.2 of
-//! the reference manual for an explanation. This is not an issue on the blue pill.
+//! This assumes that an LED is connected to pb0
 
 #![deny(unsafe_code)]
 #![no_std]
@@ -14,8 +11,7 @@ use panic_halt as _;
 use nb::block;
 
 use cortex_m_rt::entry;
-use embedded_hal::digital::v2::OutputPin;
-use gd32f1x0_hal::{pac, prelude::*, timer::Timer};
+use gd32e103_hal::{pac, prelude::*, timer::Timer};
 
 #[entry]
 fn main() -> ! {
@@ -33,20 +29,20 @@ fn main() -> ! {
     // `clocks`
     let clocks = rcu.cfgr.freeze(&mut flash.ws);
 
-    // Acquire the GPIOC peripheral
-    let mut gpioc = dp.GPIOC.split(&mut rcu.ahb);
+    // Acquire the GPIOB peripheral
+    let mut gpiob = dp.GPIOB.split(&mut rcu.apb2);
 
-    // Configure gpio C pin 13 as a push-pull output. The `crh` register is passed to the function
-    // in order to configure the port. For pins 0-7, crl should be passed instead.
-    let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.config);
+    // Configure gpio B pin 0 as a push-pull output. The `crl` register is passed to the function
+    // in order to configure the port. For pins 8+, crh should be passed instead.
+    let mut led = gpiob.pb0.into_push_pull_output(&mut gpiob.crl);
     // Configure the syst timer to trigger an update every second
     let mut timer = Timer::syst(cp.SYST, &clocks).start_count_down(1.hz());
 
     // Wait for the timer to trigger an update and change the state of the LED
     loop {
         block!(timer.wait()).unwrap();
-        led.set_high().unwrap();
+        led.set_high();
         block!(timer.wait()).unwrap();
-        led.set_low().unwrap();
+        led.set_low();
     }
 }

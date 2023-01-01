@@ -3,7 +3,7 @@
 #![no_std]
 
 use cortex_m::iprintln;
-use gd32f1x0_hal as _;
+use gd32e103_hal as _;
 use panic_itm as _;
 
 use cortex_m_rt::entry;

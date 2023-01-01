@@ -12,7 +12,7 @@
 
 use panic_halt as _;
 
-use gd32f1x0_hal::{
+use gd32e103_hal::{
     gpio::{gpioc, Output, PushPull},
     pac::{interrupt, Interrupt, Peripherals, TIMER1},
     prelude::*,

@@ -7,7 +7,7 @@
 use panic_semihosting as _;
 
 use cortex_m_semihosting::hprintln;
-use gd32f1x0_hal as _;
+use gd32e103_hal as _;
 
 use cortex_m_rt::entry;
 

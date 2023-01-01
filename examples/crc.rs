@@ -8,7 +8,7 @@ use panic_halt as _;
 
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use gd32f1x0_hal::{pac, prelude::*};
+use gd32e103_hal::{pac, prelude::*};
 
 #[entry]
 fn main() -> ! {
