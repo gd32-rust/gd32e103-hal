@@ -2,10 +2,7 @@
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-use crate::pac::{
-    dbg::ctl0::TIMER0_HOLD_A, dbg::ctl1::TIMER14_HOLD_A, DBG, TIMER0, TIMER1, TIMER13, TIMER14,
-    TIMER15, TIMER16, TIMER2, TIMER5,
-};
+use crate::pac::{dbg::ctl0::TIMER0_HOLD_A, DBG, TIMER0, TIMER1, TIMER13, TIMER2, TIMER5};
 use crate::rcu::{sealed::RcuBus, Clocks, Enable, GetBusFreq, Reset, APB1, APB2};
 use crate::time::Hertz;
 use cast::{u16, u32, u64};
@@ -49,15 +46,6 @@ impl From<DebugHold> for TIMER0_HOLD_A {
         match hold {
             DebugHold::Continue => TIMER0_HOLD_A::CONTINUE,
             DebugHold::Stop => TIMER0_HOLD_A::STOP,
-        }
-    }
-}
-
-impl From<DebugHold> for TIMER14_HOLD_A {
-    fn from(hold: DebugHold) -> Self {
-        match hold {
-            DebugHold::Continue => TIMER14_HOLD_A::CONTINUE,
-            DebugHold::Stop => TIMER14_HOLD_A::STOP,
         }
     }
 }
@@ -392,6 +380,3 @@ hal!(TIMER1: (timer1, APB1, ctl0, timer1_hold, timer1));
 hal!(TIMER2: (timer2, APB1, ctl0, timer2_hold, timer1));
 hal!(TIMER5: (timer5, APB1, ctl0, timer5_hold, timer5));
 hal!(TIMER13: (timer13, APB1, ctl0, timer13_hold));
-hal!(TIMER14: (timer14, APB2, ctl1, timer14_hold, timer14));
-hal!(TIMER15: (timer15, APB2, ctl1, timer15_hold));
-hal!(TIMER16: (timer16, APB2, ctl1, timer16_hold));
