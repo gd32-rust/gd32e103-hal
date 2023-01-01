@@ -1,4 +1,4 @@
-// Copyright 2022 The gd32e103-hal authors.
+// Copyright 2023 The gd32e103-hal authors.
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
@@ -63,9 +63,9 @@ pub mod crc;
 pub mod delay;
 pub mod dma;
 pub mod flash;
-//pub mod gpio;
+pub mod gpio;
 //pub mod i2c;
-//pub mod prelude;
+pub mod prelude;
 //pub mod pwm;
 //pub mod pwm_input;
 //pub mod qei;
@@ -74,5 +74,5 @@ pub mod rcu;
 //pub mod serial;
 //pub mod spi;
 pub mod time;
-//pub mod timer;
+pub mod timer;
 pub mod watchdog;
