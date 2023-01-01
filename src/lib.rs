@@ -68,7 +68,6 @@ pub mod gpio;
 pub mod prelude;
 //pub mod pwm;
 //pub mod pwm_input;
-//pub mod qei;
 pub mod rcu;
 //pub mod rtc;
 //pub mod serial;
