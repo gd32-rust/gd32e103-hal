@@ -4,12 +4,11 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use cortex_m::asm;
 use cortex_m_rt::entry;
 use gd32e103_hal::{
-    gpio::{OutputMode, PullMode},
     pac,
     prelude::*,
     pwm::{Channel, IdleState, Polarity},
@@ -26,31 +25,16 @@ fn main() -> ! {
 
     let clocks = rcu.cfgr.freeze(&mut flash.ws);
 
-    let mut gpioa = p.GPIOA.split(&mut rcu.ahb);
-    let mut gpiob = p.GPIOB.split(&mut rcu.ahb);
+    let mut gpioa = p.GPIOA.split(&mut rcu.apb2);
+    let mut gpiob = p.GPIOB.split(&mut rcu.apb2);
 
     // TIMER0
-    let c0 = gpioa
-        .pa8
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let c1 = gpioa
-        .pa9
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let c2 = gpioa
-        .pa10
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let cn0 =
-        gpiob
-            .pb13
-            .into_alternate(&mut gpiob.config, PullMode::Floating, OutputMode::PushPull);
-    let cn1 =
-        gpiob
-            .pb14
-            .into_alternate(&mut gpiob.config, PullMode::Floating, OutputMode::PushPull);
-    let cn2 =
-        gpiob
-            .pb15
-            .into_alternate(&mut gpiob.config, PullMode::Floating, OutputMode::PushPull);
+    let c0 = gpioa.pa8.into_alternate_push_pull(&mut gpioa.crh);
+    let c1 = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let c2 = gpioa.pa10.into_alternate_push_pull(&mut gpioa.crh);
+    let cn0 = gpiob.pb13.into_alternate_push_pull(&mut gpiob.crh);
+    let cn1 = gpiob.pb14.into_alternate_push_pull(&mut gpiob.crh);
+    let cn2 = gpiob.pb15.into_alternate_push_pull(&mut gpiob.crh);
     let pins = (Some((c0, cn0)), Some((c1, cn1)), Some((c2, cn2)));
 
     let mut pwm = Timer::timer0(p.TIMER0, &clocks, &mut rcu.apb2).pwm(pins, 1.khz());

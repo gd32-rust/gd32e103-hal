@@ -9,7 +9,7 @@
 #![no_main]
 
 // you can put a breakpoint on `rust_begin_unwind` to catch panics
-use panic_halt as _;
+use panic_semihosting as _;
 
 use rtic::app;
 
@@ -51,11 +51,11 @@ mod app {
         let clocks = rcu.cfgr.freeze(&mut flash.ws);
 
         // Acquire the GPIOC peripheral
-        let mut gpioc = cx.device.GPIOC.split(&mut rcu.ahb);
+        let mut gpioc = cx.device.GPIOC.split(&mut rcu.apb2);
 
         // Configure gpio C pin 13 as a push-pull output. The `crh` register is passed to the
         // function in order to configure the port. For pins 0-7, crl should be passed instead
-        let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.config);
+        let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
         led.set_high().unwrap();
         // Configure TIMER0 to trigger an update every second and enables interrupt
         let mut timer =

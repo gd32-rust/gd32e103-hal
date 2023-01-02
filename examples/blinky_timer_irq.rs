@@ -10,7 +10,7 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use gd32e103_hal::{
     gpio::{gpioc, Output, PushPull},
@@ -22,7 +22,6 @@ use gd32e103_hal::{
 use core::cell::RefCell;
 use cortex_m::{asm::wfi, interrupt::Mutex};
 use cortex_m_rt::entry;
-use embedded_hal::digital::v2::OutputPin;
 
 // A type definition for the GPIO pin to be used for our LED
 type LedPin = gpioc::PC13<Output<PushPull>>;
@@ -72,8 +71,8 @@ fn main() -> ! {
         .freeze(&mut flash.ws);
 
     // Configure PC13 pin to blink LED
-    let mut gpioc = dp.GPIOC.split(&mut rcu.ahb);
-    let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.config);
+    let mut gpioc = dp.GPIOC.split(&mut rcu.apb2);
+    let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
     let _ = led.set_high(); // Turn off
 
     // Move the pin into our global storage

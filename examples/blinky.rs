@@ -6,7 +6,7 @@
 #![no_std]
 #![no_main]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use nb::block;
 

@@ -4,18 +4,11 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use cortex_m::asm;
 use cortex_m_rt::entry;
-use gd32e103_hal::{
-    gpio::{gpioa::PA11, OutputMode, PullMode},
-    pac,
-    prelude::*,
-    pwm::Channel,
-    time::U32Ext,
-    timer::Timer,
-};
+use gd32e103_hal::{gpio::gpioa::PA11, pac, prelude::*, pwm::Channel, time::U32Ext, timer::Timer};
 
 #[entry]
 fn main() -> ! {
@@ -26,18 +19,12 @@ fn main() -> ! {
 
     let clocks = rcu.cfgr.freeze(&mut flash.ws);
 
-    let mut gpioa = p.GPIOA.split(&mut rcu.ahb);
+    let mut gpioa = p.GPIOA.split(&mut rcu.apb2);
 
     // TIMER0
-    let c0 = gpioa
-        .pa8
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let c1 = gpioa
-        .pa9
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let c2 = gpioa
-        .pa10
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
+    let c0 = gpioa.pa8.into_alternate_push_pull(&mut gpioa.crh);
+    let c1 = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let c2 = gpioa.pa10.into_alternate_push_pull(&mut gpioa.crh);
     // If you don't want to use all channels, just leave some out
     let pins = (Some(c0), Some(c1), Some(c2), None::<PA11<_>>);
 

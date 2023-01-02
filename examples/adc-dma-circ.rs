@@ -3,7 +3,7 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use cortex_m::{asm, singleton};
 
@@ -24,16 +24,16 @@ fn main() -> ! {
     // prescaler values 2/4/6/8.
     let clocks = rcu.cfgr.adcclk(2.mhz()).freeze(&mut flash.ws);
 
-    let dma_ch0 = p.DMA.split(&mut rcu.ahb).0;
+    let dma_ch0 = p.DMA0.split(&mut rcu.ahb).0;
 
     // Setup ADC
-    let adc = Adc::new(p.ADC, &mut rcu.apb2, clocks);
+    let adc = Adc::new(p.ADC0, &mut rcu.apb2, clocks);
 
     // Setup GPIOA
-    let mut gpioa = p.GPIOA.split(&mut rcu.ahb);
+    let mut gpioa = p.GPIOA.split(&mut rcu.apb2);
 
     // Configure pa0 as an analog input
-    let adc_ch0 = gpioa.pa0.into_analog(&mut gpioa.config);
+    let adc_ch0 = gpioa.pa0.into_analog(&mut gpioa.crl);
 
     let adc_dma = adc.with_dma(adc_ch0, dma_ch0);
     let buf = singleton!(: [[u16; 8]; 2] = [[0; 8]; 2]).unwrap();

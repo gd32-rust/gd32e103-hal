@@ -25,13 +25,13 @@ fn main() -> ! {
     hprintln!("adc freq: {}", clocks.adcclk().0);
 
     // Setup ADC
-    let mut adc = Adc::new(p.ADC, &mut rcu.apb2, clocks);
+    let mut adc = Adc::new(p.ADC0, &mut rcu.apb2, clocks);
 
     // Setup GPIOB
-    let mut gpiob = p.GPIOB.split(&mut rcu.ahb);
+    let mut gpiob = p.GPIOB.split(&mut rcu.apb2);
 
     // Configure pb0 as an analog input
-    let mut ch0 = gpiob.pb0.into_analog(&mut gpiob.config);
+    let mut ch0 = gpiob.pb0.into_analog(&mut gpiob.crl);
 
     loop {
         let data: u16 = adc.read(&mut ch0).unwrap();

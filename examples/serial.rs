@@ -6,7 +6,7 @@
 #![no_main]
 #![no_std]
 
-use panic_halt as _;
+use panic_semihosting as _;
 
 use cortex_m::asm;
 
@@ -14,7 +14,6 @@ use nb::block;
 
 use cortex_m_rt::entry;
 use gd32e103_hal::{
-    gpio::{OutputMode, PullMode},
     pac,
     prelude::*,
     serial::{Config, Serial},
@@ -35,24 +34,17 @@ fn main() -> ! {
     let clocks = rcu.cfgr.freeze(&mut flash.ws);
 
     // Prepare the GPIOA peripheral
-    let mut gpioa = p.GPIOA.split(&mut rcu.ahb);
+    let mut gpioa = p.GPIOA.split(&mut rcu.apb2);
 
     // USART0
     // Configure pa9 and pa10 in alternate function mode for the USART.
-    let tx = gpioa
-        .pa9
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    let rx = gpioa
-        .pa10
-        .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
+    let tx = gpioa.pa9.into_alternate_push_pull(&mut gpioa.crh);
+    let rx = gpioa.pa10.into_alternate_push_pull(&mut gpioa.crh);
+    // If remapping was needed, AFIO_PCF0 would need to be configured too.
 
     // USART1
-    // let tx = gpioa
-    //     .pa2
-    //     .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
-    // let rx = gpioa
-    //     .pa3
-    //     .into_alternate(&mut gpioa.config, PullMode::Floating, OutputMode::PushPull);
+    // let tx = gpioa.pa2.into_alternate_push_pull(&mut gpioa.crl);
+    // let rx = gpioa.pa3.into_alternate_push_pull(&mut gpioa.crl);
 
     // Set up the usart device. Takes ownership of the USART registers and tx/rx pins. The rest of
     // the registers are used to enable and configure the device.
