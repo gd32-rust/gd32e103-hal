@@ -1,14 +1,13 @@
-// Copyright 2021 The gd32f1x0-hal authors.
+// Copyright 2023 The gd32e103-hal authors.
 //
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 use crate::gpio::{
-    gpioa::{PA0, PA1, PA10, PA11, PA15, PA2, PA3, PA5, PA6, PA7, PA8, PA9},
-    gpiob::{PB0, PB1, PB10, PB11, PB13, PB14, PB15, PB3, PB4, PB5},
-    gpioc::{PC6, PC7, PC8, PC9},
-    Alternate, AF0, AF1, AF2,
+    gpioa::{PA0, PA1, PA10, PA11, PA15, PA2, PA3, PA5, PA8, PA9},
+    gpiob::{PB10, PB11, PB13, PB14, PB15, PB3},
+    Alternate,
 };
-use crate::pac::{timer0, timer1, timer13, timer14, timer15, TIMER0, TIMER1, TIMER2};
+use crate::pac::{timer0, timer1, TIMER0, TIMER1};
 use crate::time::Hertz;
 use crate::time::U32Ext;
 use crate::timer::{Event, Timer, TimerExt};
@@ -29,37 +28,10 @@ pub enum Polarity {
     Inverted,
 }
 
-impl From<Polarity> for timer0::chctl2::CH0P_A {
-    fn from(polarity: Polarity) -> Self {
-        match polarity {
-            Polarity::NotInverted => Self::NOTINVERTED,
-            Polarity::Inverted => Self::INVERTED,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IdleState {
     Low,
     High,
-}
-
-impl From<IdleState> for timer0::ctl1::ISO0_A {
-    fn from(idle_state: IdleState) -> Self {
-        match idle_state {
-            IdleState::Low => Self::LOW,
-            IdleState::High => Self::HIGH,
-        }
-    }
-}
-
-impl From<IdleState> for timer0::ctl1::ISO0N_A {
-    fn from(idle_state: IdleState) -> Self {
-        match idle_state {
-            IdleState::Low => Self::LOW,
-            IdleState::High => Self::HIGH,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -75,15 +47,6 @@ pub enum Alignment {
     Edge,
     /// Align the center of the pulses from each channel.
     Center,
-}
-
-impl From<Alignment> for timer0::ctl0::CAM_A {
-    fn from(alignment: Alignment) -> Self {
-        match alignment {
-            Alignment::Edge => Self::EDGEALIGNED,
-            Alignment::Center => Self::CENTERALIGNEDCOUNTINGUP,
-        }
-    }
 }
 
 #[doc(hidden)]
@@ -441,6 +404,10 @@ macro_rules! hal {
             /// Configure the given alignment mode, to control how pulses on different channels of
             /// this PWM module are aligned with each other.
             pub fn set_alignment(&self, alignment: Alignment) {
+                let alignment = match alignment {
+                    Alignment::Edge => $timerX::ctl0::CAM_A::EDGE_ALIGNED,
+                    Alignment::Center => $timerX::ctl0::CAM_A::CENTER_ALIGNED_COUNTING_UP,
+                };
                 self.timer.ctl0.modify(|_, w| w.cam().variant(alignment.into()));
             }
 
@@ -649,10 +616,18 @@ macro_rules! timer_reg_ext {
                 match (channel, complementary) {
                     $(
                         (Channel::$channel, false) => {
-                            self.chctl2.modify(|_, w| w.$p().variant(polarity.into()))
+                            let polarity = match polarity {
+                                Polarity::NotInverted => $timerX::chctl2::CH0P_A::NOT_INVERTED,
+                                Polarity::Inverted => $timerX::chctl2::CH0P_A::INVERTED,
+                            };
+                            self.chctl2.modify(|_, w| w.$p().variant(polarity))
                         }
                         $(
                             (Channel::$channel, true) => {
+                                let polarity = match polarity {
+                                    Polarity::NotInverted => $timerX::chctl2::CH0P_A::NOT_INVERTED,
+                                    Polarity::Inverted => $timerX::chctl2::CH0P_A::INVERTED,
+                                };
                                 self.chctl2.modify(|_, w| w.$np().variant(polarity.into()))
                             }
                         )?
@@ -676,11 +651,19 @@ macro_rules! timer_idle_reg_ext {
                 match (channel, complementary) {
                     $(
                         (Channel::$channel, false) => {
-                            self.ctl1.modify(|_, w| w.$iso().variant(idle_state.into()))
+                            let idle_state = match idle_state {
+                                IdleState::Low => $timerX::ctl1::ISO0_A::LOW,
+                                IdleState::High => $timerX::ctl1::ISO0_A::HIGH,
+                            };
+                            self.ctl1.modify(|_, w| w.$iso().variant(idle_state))
                         }
                         $(
                             (Channel::$channel, true) => {
-                                self.ctl1.modify(|_, w| w.$ison().variant(idle_state.into()))
+                                let idle_state = match idle_state {
+                                    IdleState::Low => $timerX::ctl1::ISO0N_A::LOW,
+                                    IdleState::High => $timerX::ctl1::ISO0N_A::HIGH,
+                                };
+                                self.ctl1.modify(|_, w| w.$ison().variant(idle_state))
                             }
                             )?
                     )+
@@ -692,35 +675,24 @@ macro_rules! timer_idle_reg_ext {
     };
 }
 
-impl Pin<TIMER0, Ch0> for PA8<Alternate<AF2>> {}
-impl Pin<TIMER0, Ch1> for PA9<Alternate<AF2>> {}
-impl Pin<TIMER0, Ch2> for PA10<Alternate<AF2>> {}
-impl Pin<TIMER0, Ch3> for PA11<Alternate<AF2>> {}
+impl Pin<TIMER0, Ch0> for PA8<Alternate> {}
+impl Pin<TIMER0, Ch1> for PA9<Alternate> {}
+impl Pin<TIMER0, Ch2> for PA10<Alternate> {}
+impl Pin<TIMER0, Ch3> for PA11<Alternate> {}
 
-impl ComplementaryPin<TIMER0, Ch0> for PB13<Alternate<AF2>> {}
-impl ComplementaryPin<TIMER0, Ch1> for PB14<Alternate<AF2>> {}
-impl ComplementaryPin<TIMER0, Ch2> for PB15<Alternate<AF2>> {}
+impl ComplementaryPin<TIMER0, Ch0> for PB13<Alternate> {}
+impl ComplementaryPin<TIMER0, Ch1> for PB14<Alternate> {}
+impl ComplementaryPin<TIMER0, Ch2> for PB15<Alternate> {}
 
-impl Pin<TIMER1, Ch0> for PA0<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch0> for PA5<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch0> for PA15<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch1> for PA1<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch1> for PB3<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch2> for PA2<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch2> for PB10<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch3> for PA3<Alternate<AF2>> {}
-impl Pin<TIMER1, Ch3> for PB11<Alternate<AF2>> {}
-
-impl Pin<TIMER2, Ch0> for PA6<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch0> for PB4<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch0> for PC6<Alternate<AF0>> {}
-impl Pin<TIMER2, Ch1> for PA7<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch1> for PB5<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch1> for PC7<Alternate<AF0>> {}
-impl Pin<TIMER2, Ch2> for PB0<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch2> for PC8<Alternate<AF0>> {}
-impl Pin<TIMER2, Ch3> for PB1<Alternate<AF1>> {}
-impl Pin<TIMER2, Ch3> for PC9<Alternate<AF0>> {}
+impl Pin<TIMER1, Ch0> for PA0<Alternate> {}
+impl Pin<TIMER1, Ch0> for PA5<Alternate> {}
+impl Pin<TIMER1, Ch0> for PA15<Alternate> {}
+impl Pin<TIMER1, Ch1> for PA1<Alternate> {}
+impl Pin<TIMER1, Ch1> for PB3<Alternate> {}
+impl Pin<TIMER1, Ch2> for PA2<Alternate> {}
+impl Pin<TIMER1, Ch2> for PB10<Alternate> {}
+impl Pin<TIMER1, Ch3> for PA3<Alternate> {}
+impl Pin<TIMER1, Ch3> for PB11<Alternate> {}
 
 // Some timers share the same PAC types so we don't need this for all of them.
 timer_reg_ext!(timer0, (
@@ -736,30 +708,11 @@ timer_idle_reg_ext!(timer0, (
     C3: iso3;
 ));
 timer_reg_ext!(timer1, (
-    C0: ch0cv, ch0val, ch0p/ch0np, ch0en;
-    C1: ch1cv, ch1val, ch1p/ch1np, ch1en;
-    C2: ch2cv, ch2val, ch2p/ch2np, ch2en;
-    C3: ch3cv, ch3val, ch3p/ch3np, ch3en;
-));
-// TIMER13/15/16 only have 1 channel, and TIMER14 only has 2.
-timer_reg_ext!(timer13, (
-    C0: ch0cv, ch0val, ch0p/ch0np, ch0en;
-));
-timer_reg_ext!(timer14, (
-    C0: ch0cv, ch0val, ch0p/ch0np, ch0en/ch0nen;
-    C1: ch1cv, ch1val, ch1p/ch1np, ch1en;
-));
-timer_idle_reg_ext!(timer14, (
-    C0: iso0/iso0n;
-    C1: iso1;
-));
-timer_reg_ext!(timer15, (
-    C0: ch0cv, ch0val, ch0p/ch0np, ch0en/ch0nen;
-));
-timer_idle_reg_ext!(timer15, (
-    C0: iso0/iso0n;
+    C0: ch0cv, ch0val, ch0p, ch0en;
+    C1: ch1cv, ch1val, ch1p, ch1en;
+    C2: ch2cv, ch2val, ch2p, ch2en;
+    C3: ch3cv, ch3val, ch3p, ch3en;
 ));
 
 hal!(TIMER0: (timer0, cchp));
 hal!(TIMER1: (timer1));
-hal!(TIMER2: (timer2));
