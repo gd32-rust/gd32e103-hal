@@ -11,9 +11,6 @@ use crate::dma::{
     self, CircBuffer, CircReadDma, Priority, ReadDma, Receive, RxDma, Transfer, TransferPayload,
     Transmit, TxDma, Width, WriteDma, R, W,
 };
-use crate::gpio::gpioa::{PA10, PA14, PA15, PA2, PA3, PA9};
-use crate::gpio::gpiob::{PB6, PB7};
-use crate::gpio::{Alternate, AF0, AF1};
 use crate::pac::{self, usart0, usart0::ctl1::STB_A, USART0};
 use crate::rcu::{sealed::RcuBus, Clocks, Enable, GetBusFreq, Reset};
 use crate::time::{Bps, U32Ext};
@@ -103,50 +100,24 @@ pub enum Event {
 pub trait TxPin<USART> {}
 pub trait RxPin<USART> {}
 
-impl TxPin<USART0> for PA9<Alternate<AF1>> {}
-impl RxPin<USART0> for PA10<Alternate<AF1>> {}
-impl TxPin<USART0> for PB6<Alternate<AF0>> {}
-impl RxPin<USART0> for PB7<Alternate<AF0>> {}
-
 // Two USARTs
-#[cfg(any(
-    feature = "gd32f130x6",
-    feature = "gd32f130x8",
-    feature = "gd32f150x6",
-    feature = "gd32f150x8",
-    feature = "gd32f170x6",
-    feature = "gd32f170x8",
-    feature = "gd32f190x6",
-    feature = "gd32f190x8",
-))]
 mod pins {
     use super::*;
-    use crate::gpio::gpiob::PB0;
-    use crate::gpio::{gpioa::PA8, AF4};
+    use crate::gpio::gpioa::{PA10, PA2, PA3, PA9};
+    use crate::gpio::gpiob::{PB6, PB7};
+    use crate::gpio::gpiod::{PD5, PD7};
+    use crate::gpio::Alternate;
     use crate::pac::USART1;
 
-    impl TxPin<USART1> for PA2<Alternate<AF1>> {}
-    impl RxPin<USART1> for PA3<Alternate<AF1>> {}
-    impl TxPin<USART1> for PA8<Alternate<AF4>> {}
-    impl RxPin<USART1> for PB0<Alternate<AF4>> {}
-    impl TxPin<USART1> for PA14<Alternate<AF1>> {}
-    impl RxPin<USART1> for PA15<Alternate<AF1>> {}
-}
+    impl TxPin<USART0> for PA9<Alternate> {}
+    impl RxPin<USART0> for PA10<Alternate> {}
+    impl TxPin<USART0> for PB6<Alternate> {}
+    impl RxPin<USART0> for PB7<Alternate> {}
 
-// Only one USART
-#[cfg(any(
-    feature = "gd32f130x4",
-    feature = "gd32f150x4",
-    feature = "gd32f170x4",
-    feature = "gd32f190x4"
-))]
-mod pins {
-    use super::*;
-
-    impl TxPin<USART0> for PA2<Alternate<AF1>> {}
-    impl RxPin<USART0> for PA3<Alternate<AF1>> {}
-    impl TxPin<USART0> for PA14<Alternate<AF1>> {}
-    impl RxPin<USART0> for PA15<Alternate<AF1>> {}
+    impl TxPin<USART1> for PA2<Alternate> {}
+    impl RxPin<USART1> for PA3<Alternate> {}
+    impl TxPin<USART1> for PD5<Alternate> {}
+    impl RxPin<USART1> for PD7<Alternate> {}
 }
 
 /// Serial abstraction
@@ -457,31 +428,29 @@ trait UsartReadWrite {
 
 impl<USART: Deref<Target = usart0::RegisterBlock>> UsartReadWrite for USART {
     fn read(&mut self) -> nb::Result<u8, Error> {
-        let status = self.stat.read();
+        let status = self.stat0.read();
 
         if status.perr().bit_is_set() {
-            self.intc.write(|w| w.pec().clear());
+            self.data.read().data().bits();
             Err(nb::Error::Other(Error::Parity))
         } else if status.ferr().bit_is_set() {
-            self.intc.write(|w| w.fec().clear());
+            self.data.read().data().bits();
             Err(nb::Error::Other(Error::Framing))
         } else if status.nerr().bit_is_set() {
-            self.intc.write(|w| w.nec().clear());
+            self.data.read().data().bits();
             Err(nb::Error::Other(Error::Noise))
         } else if status.orerr().bit_is_set() {
-            self.intc.write(|w| w.orec().clear());
-            // Discard the previous received byte.
-            self.cmd.write(|w| w.rxfcmd().discard());
+            self.data.read().data().bits();
             Err(nb::Error::Other(Error::Overrun))
         } else if status.rbne().bit_is_set() {
-            Ok(self.rdata.read().rdata().bits() as u8)
+            Ok(self.data.read().data().bits() as u8)
         } else {
             Err(nb::Error::WouldBlock)
         }
     }
 
     fn flush(&mut self) -> nb::Result<(), Infallible> {
-        let status = self.stat.read();
+        let status = self.stat0.read();
         if status.tc().bit_is_set() {
             Ok(())
         } else {
@@ -490,9 +459,9 @@ impl<USART: Deref<Target = usart0::RegisterBlock>> UsartReadWrite for USART {
     }
 
     fn write(&mut self, byte: u8) -> nb::Result<(), Infallible> {
-        let status = self.stat.read();
+        let status = self.stat0.read();
         if status.tbe().bit_is_set() {
-            self.tdata.write(|w| unsafe { w.tdata().bits(byte.into()) });
+            self.data.write(|w| unsafe { w.data().bits(byte.into()) });
             Ok(())
         } else {
             Err(nb::Error::WouldBlock)
@@ -587,7 +556,7 @@ macro_rules! serialdma {
                     // until the end of the transfer.
                     let (ptr, len) = unsafe { buffer.write_buffer() };
                     self.channel
-                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).rdata as *const _ as u32 }, false);
+                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).data as *const _ as u32 }, false);
                     self.channel.set_memory_address(ptr as u32, true);
                     self.channel.set_transfer_length(len);
 
@@ -611,7 +580,7 @@ macro_rules! serialdma {
                     // until the end of the transfer.
                     let (ptr, len) = unsafe { buffer.write_buffer() };
                     self.channel
-                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).rdata as *const _ as u32 }, false);
+                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).data as *const _ as u32 }, false);
                     self.channel.set_memory_address(ptr as u32, true);
                     self.channel.set_transfer_length(len);
 
@@ -631,15 +600,15 @@ macro_rules! serialdma {
                 fn write(mut self, buffer: B) -> Transfer<R, B, Self> {
                     // Clear transmission complete bit.
                     unsafe { &*self.payload.usart }
-                        .intc
-                        .write(|w| w.tcc().clear());
+                        .stat0
+                        .write(|w| w.tc().clear_bit());
 
                     // NOTE(unsafe) We own the buffer now and we won't call other `&mut` on it
                     // until the end of the transfer.
                     let (ptr, len) = unsafe { buffer.read_buffer() };
 
                     self.channel
-                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).tdata as *const _ as u32 }, false);
+                        .set_peripheral_address(unsafe { &(*<$USARTX>::ptr()).data as *const _ as u32 }, false);
 
                     self.channel.set_memory_address(ptr as u32, true);
                     self.channel.set_transfer_length(len);
@@ -666,16 +635,6 @@ serialdma! {
     ),
 }
 
-#[cfg(any(
-    feature = "gd32f130x6",
-    feature = "gd32f130x8",
-    feature = "gd32f150x6",
-    feature = "gd32f150x8",
-    feature = "gd32f170x6",
-    feature = "gd32f170x8",
-    feature = "gd32f190x6",
-    feature = "gd32f190x8",
-))]
 serialdma! {
     pac::USART1: (
         RxDma1,

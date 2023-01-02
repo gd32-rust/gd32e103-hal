@@ -70,7 +70,7 @@ pub mod pwm;
 //pub mod pwm_input;
 pub mod rcu;
 //pub mod rtc;
-//pub mod serial;
+pub mod serial;
 //pub mod spi;
 pub mod time;
 pub mod timer;
