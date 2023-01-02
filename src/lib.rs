@@ -56,7 +56,7 @@
 
 pub use gd32e1::gd32e103 as pac;
 
-//pub mod adc;
+pub mod adc;
 //pub mod backup_domain;
 //pub mod can;
 pub mod crc;

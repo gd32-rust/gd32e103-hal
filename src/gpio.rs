@@ -285,7 +285,7 @@ impl<const P: char, const N: u8> Pin<P, N, Debugger> {
     /// must enforce that the pin is really in this
     /// state in the hardware.
     #[allow(dead_code)]
-    pub(crate) unsafe fn activate(self) -> Pin<P, N, Input<Floating>> {
+    pub unsafe fn activate(self) -> Pin<P, N, Input<Floating>> {
         Pin::new()
     }
 }

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! # API for the Analog to Digital converter
+//!
+//! Only ADC0 is supported
 
 use crate::dma::{
     CircBuffer, CircReadDma, Priority, ReadDma, Receive, RxDma, Transfer, TransferPayload, Width,
@@ -11,12 +13,12 @@ use crate::dma::{
 use crate::gpio::Analog;
 use crate::gpio::{gpioa, gpiob, gpioc};
 use crate::pac::{
-    adc::{
-        ctl1::{CTN_A, DAL_A, TSVREN_A, VBATEN_A},
+    adc0::{
+        ctl1::{CTN_A, DAL_A, TSVREN_A},
         sampt0::SPT10_A,
         sampt1::SPT0_A,
     },
-    ADC,
+    ADC0,
 };
 use crate::rcu::{Clocks, Enable, Reset, APB2};
 use core::{
@@ -42,7 +44,7 @@ const VREF: u32 = 1200;
 
 /// ADC configuration
 pub struct Adc {
-    rb: ADC,
+    rb: ADC0,
     /// The sample time to use for one-off conversions.
     pub sample_time: SampleTime,
     align: Align,
@@ -141,7 +143,7 @@ impl Adc {
     /// Initialises the ADC.
     ///
     /// Sets all configurable parameters to one-shot defaults, and performs a boot-time calibration.
-    pub fn new(adc: ADC, apb2: &mut APB2, clocks: Clocks) -> Self {
+    pub fn new(adc: ADC0, apb2: &mut APB2, clocks: Clocks) -> Self {
         let mut s = Self {
             rb: adc,
             sample_time: SampleTime::default(),
@@ -149,9 +151,9 @@ impl Adc {
             clocks,
             vref_value: 0, // This will be overwritten by `read_vref` below.
         };
-        ADC::enable(apb2);
+        ADC0::enable(apb2);
         s.power_down();
-        ADC::reset(apb2);
+        ADC0::reset(apb2);
 
         s.setup_oneshot();
 
@@ -167,9 +169,9 @@ impl Adc {
     }
 
     /// Powers down the ADC, disables the ADC clock and releases the ADC peripheral.
-    pub fn release(mut self, apb2: &mut APB2) -> ADC {
+    pub fn release(mut self, apb2: &mut APB2) -> ADC0 {
         self.power_down();
-        ADC::disable(apb2);
+        ADC0::disable(apb2);
         self.rb
     }
 
@@ -194,14 +196,12 @@ impl Adc {
     fn setup_oneshot(&mut self) {
         self.rb
             .ctl1
-            .modify(|_, w| w.ctn().single().eterc().enabled().etsrc().swrcst());
+            .write(|w| w.ctn().single().eterc().enabled().etsrc().swrcst());
 
-        self.rb
-            .ctl0
-            .modify(|_, w| w.sm().disabled().disrc().enabled());
+        self.rb.ctl0.write(|w| w.sm().disabled().disrc().enabled());
 
         // One channel in regular group
-        self.rb.rsq0.modify(|_, w| w.rl().bits(0));
+        self.rb.rsq0.write(|w| w.rl().bits(0));
     }
 
     fn set_channel_sample_time(&mut self, channel: u8, sample_time: SampleTime) {
@@ -293,7 +293,11 @@ impl Adc {
 
     /// Set ADC sampling time for particular channel
     #[inline(always)]
-    pub fn set_sample_time<C: Channel<ADC, ID = u8>>(&mut self, _pin: &C, sample_time: SampleTime) {
+    pub fn set_sample_time<C: Channel<ADC0, ID = u8>>(
+        &mut self,
+        _pin: &C,
+        sample_time: SampleTime,
+    ) {
         self.set_channel_sample_time(C::channel(), sample_time);
     }
 
@@ -342,17 +346,6 @@ impl Adc {
         (VTEMP_25 - vtemp) * 10 / VTEMP_SLOPE + 25
     }
 
-    /// Enables or disables the internal channel for the backup battery voltage.
-    pub fn enable_vbat(&mut self, enabled: bool) {
-        self.rb.ctl1.modify(|_, w| {
-            w.vbaten().variant(if enabled {
-                VBATEN_A::ENABLED
-            } else {
-                VBATEN_A::DISABLED
-            })
-        });
-    }
-
     /// Enables or disables the auxiliary channels for the internal temperature sensor and Vref.
     pub fn enable_aux(&mut self, enabled: bool) {
         self.rb.ctl1.modify(|_, w| {
@@ -362,28 +355,6 @@ impl Adc {
                 TSVREN_A::DISABLED
             })
         });
-    }
-
-    /// Reads the backup battery voltage from channel 18 of the ADC.
-    ///
-    /// This method automatically enables the channel if necessary, so there is no need to call
-    /// `enable_vbat` first.
-    pub fn read_vbat(&mut self) -> u16 {
-        let vbat_off = if self.rb.ctl1.read().vbaten().is_disabled() {
-            self.rb.ctl1.modify(|_, w| w.vbaten().enabled());
-            true
-        } else {
-            false
-        };
-
-        let value = self.convert(VBat::channel());
-
-        if vbat_off {
-            self.rb.ctl1.modify(|_, w| w.vbaten().disabled());
-        }
-
-        // Vbat/2 is connected to ADC channel 18, so we need to double it again.
-        self.calculate_voltage(value) * 2
     }
 
     /// Reads the temperature sensor or Vref on channel 16 or 17.
@@ -456,8 +427,8 @@ impl Adc {
         // Start conversion of regular sequence.
         self.rb
             .ctl1
-            .modify(|_, w| w.swrcst().start().dal().variant(self.align.into()));
-        while self.rb.ctl1.read().swrcst().is_not_started() {}
+            .modify(|_, w| w.swicst().start().dal().variant(self.align.into()));
+        while self.rb.ctl1.read().swicst().is_not_started() {}
 
         // Wait for conversion results.
         while self.rb.stat.read().eoc().is_not_complete() {}
@@ -468,7 +439,7 @@ impl Adc {
     /// Configure the ADC to read from the given pin with DMA.
     pub fn with_dma<PIN>(mut self, pins: PIN, dma_ch: C0) -> AdcDma<PIN, Continuous>
     where
-        PIN: Channel<ADC, ID = u8>,
+        PIN: Channel<ADC0, ID = u8>,
     {
         self.rb.ctl0.modify(|_, w| w.disrc().disabled());
         self.rb
@@ -490,10 +461,10 @@ impl Adc {
     }
 }
 
-impl<WORD, PIN> OneShot<ADC, WORD, PIN> for Adc
+impl<WORD, PIN> OneShot<ADC0, WORD, PIN> for Adc
 where
     WORD: From<u16>,
-    PIN: Channel<ADC, ID = u8>,
+    PIN: Channel<ADC0, ID = u8>,
 {
     type Error = Infallible;
 
@@ -595,7 +566,7 @@ pub struct Sequence {
 
 impl Sequence {
     /// Adds the given ADC pin to the list of channels.
-    pub fn add_pin<PIN: Channel<ADC, ID = u8>>(&mut self, pin: PIN) -> Result<(), PIN> {
+    pub fn add_pin<PIN: Channel<ADC0, ID = u8>>(&mut self, pin: PIN) -> Result<(), PIN> {
         if self.length >= self.channels.len() {
             return Err(pin);
         }
@@ -627,10 +598,6 @@ pub struct VTemp;
 #[derive(Debug, Default)]
 pub struct VRef;
 
-/// Backup battery voltage / 2 (ADC channel 18)
-#[derive(Debug, Default)]
-pub struct VBat;
-
 macro_rules! adc_pins {
     ($ADC:ident, $($pin:ty => $chan:expr),+ $(,)*) => {
         $(
@@ -643,7 +610,7 @@ macro_rules! adc_pins {
     };
 }
 
-adc_pins!(ADC,
+adc_pins!(ADC0,
     gpioa::PA0<Analog> => 0,
     gpioa::PA1<Analog> => 1,
     gpioa::PA2<Analog> => 2,
@@ -662,7 +629,6 @@ adc_pins!(ADC,
     gpioc::PC5<Analog> => 15,
     VTemp => 16,
     VRef => 17,
-    VBat => 18,
 );
 
 pub struct AdcPayload<PINS, MODE> {
@@ -759,7 +725,7 @@ where
         // until the end of the transfer.
         let (ptr, len) = unsafe { buffer.write_buffer() };
         self.channel
-            .set_peripheral_address(unsafe { &(*ADC::ptr()).rdata as *const _ as u32 }, false);
+            .set_peripheral_address(unsafe { &(*ADC0::ptr()).rdata as *const _ as u32 }, false);
         self.channel.set_memory_address(ptr as u32, true);
         self.channel.set_transfer_length(len);
 
@@ -788,7 +754,7 @@ where
         // until the end of the transfer.
         let (ptr, len) = unsafe { buffer.write_buffer() };
         self.channel
-            .set_peripheral_address(unsafe { &(*ADC::ptr()).rdata as *const _ as u32 }, false);
+            .set_peripheral_address(unsafe { &(*ADC0::ptr()).rdata as *const _ as u32 }, false);
         self.channel.set_memory_address(ptr as u32, true);
         self.channel.set_transfer_length(len);
 
