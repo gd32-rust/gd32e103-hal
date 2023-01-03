@@ -3,36 +3,9 @@
 // This document describes a correct I2C implementation and is what parts of this code is based on:
 // https://www.st.com/content/ccc/resource/technical/document/application_note/5d/ae/a3/6f/08/69/4e/9b/CD00209826.pdf/files/CD00209826.pdf/jcr:content/translations/en.CD00209826.pdf
 
-use crate::gpio::gpioa::*;
 use crate::gpio::gpiob::*;
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-use crate::gpio::gpioc::{PC0, PC1, PC7, PC8};
-#[cfg(any(
-    feature = "gd32f130x4",
-    feature = "gd32f130x6",
-    feature = "gd32f130x8",
-    feature = "gd32f170x4",
-    feature = "gd32f170x8",
-    feature = "gd32f190x4",
-    feature = "gd32f190x8",
-))]
-use crate::gpio::gpiof::{PF6, PF7};
-#[cfg(any(
-    feature = "gd32f130x4",
-    feature = "gd32f130x6",
-    feature = "gd32f130x8",
-    feature = "gd32f170x4",
-    feature = "gd32f170x8",
-    feature = "gd32f190x4",
-    feature = "gd32f190x8",
-))]
-use crate::gpio::AF0;
-use crate::gpio::{Alternate, AF1, AF4};
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-use crate::pac::I2C2;
+use crate::gpio::Alternate;
 use crate::pac::{DWT, I2C0, I2C1};
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-use crate::rcu::ADDAPB1;
 use crate::rcu::{Clocks, Enable, GetBusFreq, Reset, APB1};
 use crate::time::Hertz;
 use core::ops::Deref;
@@ -103,78 +76,13 @@ pub trait SclPin<I2C> {}
 pub trait SdaPin<I2C> {}
 
 // Pins for I2C0
-impl SclPin<I2C0> for PA9<Alternate<AF4>> {}
-impl SdaPin<I2C0> for PA10<Alternate<AF4>> {}
-impl SclPin<I2C0> for PB6<Alternate<AF1>> {}
-impl SdaPin<I2C0> for PB7<Alternate<AF1>> {}
-impl SclPin<I2C0> for PB8<Alternate<AF1>> {}
-impl SdaPin<I2C0> for PB9<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f170x4", feature = "gd32f190x4"))]
-impl SclPin<I2C0> for PB10<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f170x4", feature = "gd32f190x4"))]
-impl SdaPin<I2C0> for PB11<Alternate<AF1>> {}
-#[cfg(any(
-    feature = "gd32f130x4",
-    feature = "gd32f130x6",
-    feature = "gd32f170x4",
-    feature = "gd32f190x4",
-))]
-impl SclPin<I2C0> for PF6<Alternate<AF0>> {}
-#[cfg(any(
-    feature = "gd32f130x4",
-    feature = "gd32f130x6",
-    feature = "gd32f170x4",
-    feature = "gd32f190x4",
-))]
-impl SdaPin<I2C0> for PF7<Alternate<AF0>> {}
+impl SclPin<I2C0> for PB6<Alternate> {}
+impl SdaPin<I2C0> for PB7<Alternate> {}
+impl SclPin<I2C0> for PB8<Alternate> {}
+impl SdaPin<I2C0> for PB9<Alternate> {}
 
-// Pins for I2C1
-#[cfg(any(
-    feature = "gd32f130x8",
-    feature = "gd32f150x8",
-    feature = "gd32f170x8",
-    feature = "gd32f190x8",
-))]
-impl SclPin<I2C1> for PA0<Alternate<AF4>> {}
-#[cfg(any(
-    feature = "gd32f130x8",
-    feature = "gd32f150x8",
-    feature = "gd32f170x8",
-    feature = "gd32f190x8",
-))]
-impl SdaPin<I2C1> for PA1<Alternate<AF4>> {}
-#[cfg(any(
-    feature = "gd32f130x8",
-    feature = "gd32f150x8",
-    feature = "gd32f170x8",
-    feature = "gd32f190x8",
-))]
-impl SclPin<I2C1> for PB10<Alternate<AF1>> {}
-#[cfg(any(
-    feature = "gd32f130x8",
-    feature = "gd32f150x8",
-    feature = "gd32f170x8",
-    feature = "gd32f190x8",
-))]
-impl SdaPin<I2C1> for PB11<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f130x8", feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SclPin<I2C1> for PF6<Alternate<AF0>> {}
-#[cfg(any(feature = "gd32f130x8", feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SdaPin<I2C1> for PF7<Alternate<AF0>> {}
-
-// Pins for I2C2
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SclPin<I2C2> for PB6<Alternate<AF4>> {}
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SdaPin<I2C2> for PB7<Alternate<AF4>> {}
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SclPin<I2C2> for PC0<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SdaPin<I2C2> for PC1<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SclPin<I2C2> for PC7<Alternate<AF1>> {}
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-impl SdaPin<I2C2> for PC8<Alternate<AF1>> {}
+impl SclPin<I2C1> for PB10<Alternate> {}
+impl SdaPin<I2C1> for PB11<Alternate> {}
 
 /// I2C peripheral operating in master mode
 pub struct I2c<I2C, SCLPIN, SDAPIN> {
@@ -255,8 +163,6 @@ macro_rules! i2c_impl {
 
 i2c_impl!(I2C0, i2c0, APB1);
 i2c_impl!(I2C1, i2c1, APB1);
-#[cfg(any(feature = "gd32f170x8", feature = "gd32f190x8"))]
-i2c_impl!(I2C2, i2c2, ADDAPB1);
 
 /// Generates a blocking I2C instance from a universal I2C object.
 fn blocking_i2c<I2C, SCLPIN, SDAPIN>(
