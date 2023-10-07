@@ -32,6 +32,7 @@ impl RcuExt for RCU {
             apb1: APB1 { _0: () },
             apb2: APB2 { _0: () },
             addapb1: ADDAPB1 { _0: () },
+            rstsck: RSTSCK { _0: () },
             cfgr: CFGR {
                 hxtal: None,
                 hclk: None,
@@ -64,6 +65,7 @@ pub struct Rcu {
     /// Additional Advanced Peripheral Bus 1 (ADDAPB1) registers
     pub addapb1: ADDAPB1,
     pub cfgr: CFGR,
+    pub rstsck: RSTSCK,
     pub bkp: BKP,
 }
 
@@ -168,6 +170,20 @@ impl ADDAPB1 {
     pub(crate) fn rstr(&mut self) -> &rcu::ADDAPB1RST {
         // NOTE(unsafe) this proxy grants exclusive access to this register
         unsafe { &(*RCU::ptr()).addapb1rst }
+    }
+}
+
+pub struct RSTSCK {
+    _0: (),
+}
+
+impl RSTSCK {
+    pub fn reason(&self) -> u32 {
+        let rcu = unsafe { &*RCU::ptr() };
+        let r = rcu.rstsck.read().bits();
+        // Reset all flags
+        rcu.rstsck.write(|w| w.rstfc().set_bit());
+        r
     }
 }
 
@@ -301,6 +317,7 @@ impl CFGR {
         };
 
         assert!(hclk <= 120_000_000);
+        assert!(hclk <= sysclk);
 
         // Default APB1 clock to less than 36 MHz so I2C will work.
         let (apb1psc, ppre1) = match hclk / self.pclk1.unwrap_or_else(|| cmp::min(hclk, 36_000_000))
@@ -331,7 +348,6 @@ impl CFGR {
 
         assert!(pclk2 <= 120_000_000);
 
-        // TODO check this for GD32E103
         // adjust flash wait states
         ws.ws().write(|w| {
             w.wscnt().variant(if sysclk <= 24_000_000 {
