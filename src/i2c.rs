@@ -4,7 +4,7 @@
 // https://www.st.com/content/ccc/resource/technical/document/application_note/5d/ae/a3/6f/08/69/4e/9b/CD00209826.pdf/files/CD00209826.pdf/jcr:content/translations/en.CD00209826.pdf
 
 use crate::gpio::gpiob::*;
-use crate::gpio::Alternate;
+use crate::gpio::{Alternate, OpenDrain};
 use crate::pac::{DWT, I2C0, I2C1};
 use crate::rcu::{Clocks, Enable, GetBusFreq, Reset, APB1};
 use crate::time::Hertz;
@@ -76,13 +76,13 @@ pub trait SclPin<I2C> {}
 pub trait SdaPin<I2C> {}
 
 // Pins for I2C0
-impl SclPin<I2C0> for PB6<Alternate> {}
-impl SdaPin<I2C0> for PB7<Alternate> {}
-impl SclPin<I2C0> for PB8<Alternate> {}
-impl SdaPin<I2C0> for PB9<Alternate> {}
+impl SclPin<I2C0> for PB6<Alternate<OpenDrain>> {}
+impl SdaPin<I2C0> for PB7<Alternate<OpenDrain>> {}
+impl SclPin<I2C0> for PB8<Alternate<OpenDrain>> {}
+impl SdaPin<I2C0> for PB9<Alternate<OpenDrain>> {}
 
-impl SclPin<I2C1> for PB10<Alternate> {}
-impl SdaPin<I2C1> for PB11<Alternate> {}
+impl SclPin<I2C1> for PB10<Alternate<OpenDrain>> {}
+impl SdaPin<I2C1> for PB11<Alternate<OpenDrain>> {}
 
 /// I2C peripheral operating in master mode
 pub struct I2c<I2C, SCLPIN, SDAPIN> {
@@ -114,7 +114,7 @@ macro_rules! i2c_impl {
                 scl_pin: SCLPIN,
                 sda_pin: SDAPIN,
                 mode: Mode,
-                clocks: Clocks,
+                clocks: &Clocks,
                 apb: &mut $APBn,
             ) -> Self
             where
@@ -133,7 +133,7 @@ macro_rules! i2c_impl {
                 scl_pin: SCLPIN,
                 sda_pin: SDAPIN,
                 mode: Mode,
-                clocks: Clocks,
+                clocks: &Clocks,
                 apb: &mut $APBn,
                 start_timeout_us: u32,
                 start_retries: u8,
@@ -167,7 +167,7 @@ i2c_impl!(I2C1, i2c1, APB1);
 /// Generates a blocking I2C instance from a universal I2C object.
 fn blocking_i2c<I2C, SCLPIN, SDAPIN>(
     i2c: I2c<I2C, SCLPIN, SDAPIN>,
-    clocks: Clocks,
+    clocks: &Clocks,
     start_timeout_us: u32,
     start_retries: u8,
     addr_timeout_us: u32,
@@ -242,13 +242,13 @@ where
         scl_pin: SCLPIN,
         sda_pin: SDAPIN,
         mode: Mode,
-        clocks: Clocks,
+        clocks: &Clocks,
         apb: &mut I2C::Bus,
     ) -> Self {
         I2C::enable(apb);
         I2C::reset(apb);
 
-        let pclk1 = I2C::Bus::get_frequency(&clocks).0;
+        let pclk1 = I2C::Bus::get_frequency(clocks).0;
 
         assert!(mode.get_frequency().0 <= 400_000);
 
@@ -373,7 +373,7 @@ where
         scl_pin: SCLPIN,
         sda_pin: SDAPIN,
         mode: Mode,
-        clocks: Clocks,
+        clocks: &Clocks,
         apb: &mut I2C::Bus,
         start_timeout_us: u32,
         start_retries: u8,
