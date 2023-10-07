@@ -9,20 +9,21 @@ use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::peripheral::SYST;
 
 use crate::rcu::Clocks;
+use crate::time::Hertz;
 use embedded_hal::blocking::delay::{DelayMs, DelayUs};
 
 /// System timer (SysTick) as a delay provider
 pub struct Delay {
     syst: SYST,
-    clocks: Clocks,
+    ahb_clk: Hertz,
 }
 
 impl Delay {
     /// Configures the system timer (SysTick) as a delay provider
-    pub fn new(mut syst: SYST, clocks: Clocks) -> Self {
+    pub fn new(mut syst: SYST, clocks: &Clocks) -> Self {
         syst.set_clock_source(SystClkSource::Core);
-
-        Delay { syst, clocks }
+        let ahb_clk = clocks.hclk();
+        Delay { syst, ahb_clk }
     }
 
     /// Releases the system timer (SysTick) resource
@@ -54,9 +55,7 @@ impl DelayUs<u32> for Delay {
         // The SysTick Reload Value register supports values between 1 and 0x00FFFFFF.
         const MAX_RVR: u32 = 0x00FF_FFFF;
 
-        let mut total_ticks = us
-            .wrapping_mul(self.clocks.hclk().0)
-            .wrapping_div(1_000_000);
+        let mut total_ticks = us * (self.ahb_clk.0 / 1_000_000);
 
         while total_ticks != 0 {
             let current_rvr = if total_ticks <= MAX_RVR {
