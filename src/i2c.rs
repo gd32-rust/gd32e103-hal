@@ -472,11 +472,10 @@ where
     type Error = NbError<Error>;
 
     fn read(&mut self, addr: u8, buffer: &mut [u8]) -> Result<(), Self::Error> {
-        self.send_start_and_wait()?;
-        self.send_addr_and_wait(addr, true)?;
-
         match buffer.len() {
             1 => {
+                self.send_start_and_wait()?;
+                self.send_addr_and_wait(addr, true)?;
                 self.nb.i2c.ctl0.modify(|_, w| w.acken().nak());
                 self.nb.i2c.stat0.read();
                 self.nb.i2c.stat1.read();
@@ -493,6 +492,8 @@ where
                     .i2c
                     .ctl0
                     .modify(|_, w| w.poap().next().acken().ack());
+                self.send_start_and_wait()?;
+                self.send_addr_and_wait(addr, true)?;
                 self.nb.i2c.stat0.read();
                 self.nb.i2c.stat1.read();
                 self.nb.i2c.ctl0.modify(|_, w| w.acken().nak());
@@ -510,6 +511,8 @@ where
                 self.nb.i2c.ctl0.modify(|_, w| w.acken().ack());
             }
             buffer_len => {
+                self.send_start_and_wait()?;
+                self.send_addr_and_wait(addr, true)?;
                 self.nb.i2c.ctl0.modify(|_, w| w.acken().ack());
                 self.nb.i2c.stat0.read();
                 self.nb.i2c.stat1.read();
