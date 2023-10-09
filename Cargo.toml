@@ -23,7 +23,7 @@ embedded-dma = "0.2.0"
 embedded-hal = { version = "0.2.7", features = ["unproven"] }
 nb = "1.0.0"
 void = { version = "1.0.2", default-features = false }
-gd32e1 = { version = "0.7.0", features = ["gd32e103", "rt", "critical-section"] }
+gd32e1 = { version = "0.8.0", features = ["gd32e103", "rt", "critical-section"] }
 
 [dev-dependencies]
 byteorder = { version = "1.5.0",default-features = false }
